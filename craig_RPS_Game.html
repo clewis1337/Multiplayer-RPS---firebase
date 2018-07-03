@@ -17,7 +17,9 @@
 <body>
 
     <h1>Welcome to rock paper scissors</h1>
-    <p>To play, press 'r' for rock, 'p' for paper, or 's' for scissors. Press ENTER to submit your answer.  Wait patiently after that.</p>
+    <p>To play, press 'r' for rock, 'p' for paper, or 's' for scissors. Press ENTER to submit your answer. Wait patiently after
+        that.
+    </p>
 
     <!-- Input Player Name and Disappear After -->
     <form class="enterNameForm" id="name-form insertName">
@@ -37,7 +39,7 @@
                 <div class="row player2Losses">Losses:</div>
                 <div class="row player2Ties">Ties:</div>
             </div>
-            <div class="col game-board" id="player2Box">
+            <div class="col game-board" id="centerBox">
                 <div class="row">CRAIG WINS</div>
             </div>
             <div class="col game-board" id="player2Box">
@@ -52,7 +54,6 @@
     </div>
 
     <script>
-
         var config = {
             apiKey: "AIzaSyBuBwswHzEx0RBO7NeS_388_ABftxVvZo0",
             authDomain: "multiplayer-rps-7f5c8.firebaseapp.com",
@@ -61,7 +62,6 @@
             storageBucket: "multiplayer-rps-7f5c8.appspot.com",
             messagingSenderId: "274554624224"
         };
-
         firebase.initializeApp(config);
         var database = firebase.database();
         //VARIABLES
@@ -80,12 +80,11 @@
             ties: 0,
         };
         var thisPlayer = 0;
-        var turnCounter = 0; //0 = start. 1 = player1, 2 = player2, 3 = compare the results!
-
+        var turnCounter = 0; //0 = start. 1 = player1, 2 = player2, 3 = compare the results!\
+        var winningPlayer = 0;
         //Storing User Name
         $("#add-name").on("click", function () {
             event.preventDefault();
-
             if (player1.name === '') { //no player 1.  Take player place.
                 console.log("User is now player 1");
                 player1.name = $("#name-input").val();
@@ -102,7 +101,6 @@
                 console.log('There are currently 2 players in the database!  Debug/delete');
             }
             $('.enterNameForm').hide();
-
         });
         //END ADD NAME
 
@@ -116,7 +114,6 @@
             else { //No player1
                 player1.name = '';
             }
-
             if (snapshot.child("player2").exists()) { //player2 exists
                 player2 = snapshot.val().player2;
                 $(".player2Name").text(player2.name);
@@ -125,21 +122,68 @@
             else {
                 player2.name = '';
             }
-
-            if ((player1.name !== '') && (player2.name !== '')) { //Two players in game!
+            if ((snapshot.child("player2").exists()) && (snapshot.child("player2").exists())) { //Two players in game!
                 console.log('LETS GET READY TO RUMBLEEE');
-                turn
+                //turn
+                //BOTH PLAYERS PLACED A MOVE
+                if ((snapshot.val().player2.move !== '') && (snapshot.val().player1.move !== '')) {
+
+                    database.ref().child("/turn").set(1);
+                    updateBoard(snapshot);
+                    player1.move = snapshot.val().player1.move;
+                    player2.move = snapshot.val().player2.move;
+                }
+            }
+
+            updateBoard(snapshot);
+        });
+
+        function updateBoard(snapshot) {
+            player1.wins = snapshot.val().player1.wins;
+            player1.losses = snapshot.val().player1.losses;
+            player1.ties = snapshot.val().player1.ties;
+
+            player2.wins = snapshot.val().player2.wins;
+            player2.losses = snapshot.val().player2.losses;
+            player2.ties = snapshot.val().player2.ties;
+
+            $('#player1Wins').html('Wins: ' + player1.wins);
+            $('#player1Losses').html('Losses: ' + player1.losses);
+            $('#player1Ties').html('Ties: ' + player1.ties);
+
+            $('#player2Wins').html('Wins: ' + player2.wins);
+            $('#player2Losses').html('Losses: ' + player2.losses);
+            $('#player2Ties').html('Ties: ' + player2.ties);
+
+            if (turnCounter === 1) {
+                if (winningPlayer === 3) {
+                    $('#centerBox').html('ITS A TIE');
+                }
+                else if (winningPlayer === thisPlayer) {
+                    $('#centerBox').html('YOU WIN');
+                }
+                else {
+                    $('#centerBox').html('YOU LOSE');
+                }
+            }
+        }
+
+        database.ref("/turn").on("value", function (snapshot) {
+            turnCounter = snapshot.val();
+            if (turnCounter === 1) {
+
+                playGame();
+                database.ref().child("/turn").set(0);
+                player1.move = '';
+                player2.move = '';
             }
 
         });
         //END Players Listener
-
         //ON KEY PRESS
         document.onkeypress = function (e) {
             let key = e.key || e.keyCode;
             let playerMove = key;
-
-
             if (playerMove === 's' || playerMove === 'r' || playerMove === 'p') {
                 console.log("player move " + playerMove);
                 if (thisPlayer === 1) {
@@ -164,71 +208,79 @@
                     $('.player2Move').text('Sent! Wait for player1');
                     player2.move = '';
                 }
-
             }
-            playGame(snapshot);
+            //playGame(snapshot);
         }
         //END Key Press
-
-        function playGame(snapshot) {
-            player1 = snapshot.val().player1; //grab both users information
-            player2 = snapshot.val().player2;
+        function playGame() {
+            // player1 = snapshot.val().player1; //grab both users information
+            // player2 = snapshot.val().player2;
             console.log(`Player1 Move: ${player1.move} VS Player2 Move: ${player2.move}`);
             if ((player1.move === player2.move) && (player1.move !== '')) {
                 console.log('ITS A TIE')
+                winningPlayer = 3;
                 player1.ties++;
                 player2.ties++;
-                database.ref().child("/turn/").set(1);
+                database.ref().child("/players/player1/ties").set(player1.ties);
+                database.ref().child("/players/player2/ties").set(player2.ties);
             }
             else if (player1.move === 'r' && player2.move === 's') {
                 console.log('PLAYER 1 WINS')
+                winningPlayer = 1;
                 player1.wins++;
                 player2.losses++;
-                database.ref().child("/turn/").set(1);
+                database.ref().child("/players/player1/wins").set(player1.wins);
+                database.ref().child("/players/player2/losses").set(player1.losses);
             }
             else if (player1.move === 's' && player2.move === 'p') {
                 console.log('PLAYER 1 WINS')
+                winningPlayer = 1;
                 player1.wins++;
                 player2.losses++;
-                database.ref().child("/turn/").set(1);
+                database.ref().child("/players/player1/wins").set(player1.wins);
+                database.ref().child("/players/player2/losses").set(player1.losses);
             }
             else if (player1.move === 'p' && player2.move === 'r') {
                 console.log('PLAYER 1 WINS')
+                winningPlayer = 1;
                 player1.wins++;
                 player2.losses++;
-                database.ref().child("/turn/").set(1);
+                database.ref().child("/players/player1/wins").set(player1.wins);
+                database.ref().child("/players/player2/losses").set(player1.losses);
             }
             else if (player2.move === 'r' && player1.move === 's') {
                 console.log('PLAYER 2 WINS')
+                winningPlayer = 2;
                 player2.wins++;
                 player1.losses++;
-                database.ref().child("/turn/").set(1);
+                database.ref().child("/players/player2/wins").set(player2.wins);
+                database.ref().child("/players/player1/losses").set(player1.losses);
             }
             else if (player2.move === 'p' && player1.move === 'r') {
                 console.log('PLAYER 2 WINS')
+                winningPlayer = 2;
                 player2.wins++;
                 player1.losses++;
-                database.ref().child("/turn/").set(1);
+                database.ref().child("/players/player2/wins").set(player2.wins);
+                database.ref().child("/players/player1/losses").set(player1.losses);
             }
             else if (player2.move === 's' && player1.move === 'p') {
                 console.log('PLAYER 2 WINS')
+                winningPlayer = 2;
                 player2.wins++;
                 player1.losses++;
-                database.ref().child("/turn/").set(1);
-
+                database.ref().child("/players/player2/wins").set(player2.wins);
+                database.ref().child("/players/player1/losses").set(player1.losses);
             }
-        // RESET/UPDATE VALUES IN DB
-        player1.move = '';
-        player2.move = '';
-        
+            // RESET/UPDATE VALUES IN DB
+            player1.move = '';
+            player2.move = '';
 
         }
-
         database.ref("/turn/").on("value", function (snapshot) {
-          // console.log("This is database turn value " + snapshot.val());
-          // if (snashot.val() === )
+            // console.log("This is database turn value " + snapshot.val());
+            // if (snashot.val() === )
         });
-
     </script>
 </body>
 
